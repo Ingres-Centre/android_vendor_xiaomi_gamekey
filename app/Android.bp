@@ -1,0 +1,24 @@
+android_app_import {
+    name: "GameKeysApp",
+    apk: "GameKeys.apk",
+    privileged: true,
+    presigned: true,
+    preprocessed: true,
+    product_specific: true,
+}
+
+prebuilt_etc {
+    name: "gamekeys-priv-perms",
+    src: "permissions/privapp-org.ingres.gamekeys.xml",
+    filename: "privapp-org.ingres.gamekeys.xml",
+    sub_dir: "permissions",
+    product_specific: true,
+}
+
+prebuilt_etc {
+    name: "gamekeys-default-perms",
+    src: "default-permissions/privapp-org.ingres.gamekeys.xml",
+    filename: "privapp-org.ingres.gamekeys.xml",
+    sub_dir: "default-permissions",
+    product_specific: true,
+}

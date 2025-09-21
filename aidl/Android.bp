@@ -1,0 +1,16 @@
+aidl_interface {
+    name: "org.ingres.gamekeys",
+    srcs: ["org/ingres/gamekeys/*.aidl"],
+    owner: "xiaomi",
+    stability: "vintf",
+    backend: {
+        java: {
+            enabled: true,
+        },
+        rust: {
+            enabled: true,
+        },
+    },
+    vendor_available: true,
+    frozen: false,
+}

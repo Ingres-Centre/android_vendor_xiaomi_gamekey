@@ -1,0 +1,11 @@
+rust_library {
+    name: "libbinder_tokio",
+    crate_name: "binder_tokio",
+    srcs: ["src/lib.rs"],
+    edition: "2021",
+    vendor_available : true,
+    rustlibs: [
+        "libtokio",
+        "libbinder_rs",
+    ],
+}

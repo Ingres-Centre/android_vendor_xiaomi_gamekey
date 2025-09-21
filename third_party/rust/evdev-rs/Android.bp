@@ -1,0 +1,13 @@
+rust_library {
+    name: "libevdev_rs",
+    crate_name: "evdev_rs",
+    srcs: ["src/lib.rs"],
+    edition: "2021",
+    vendor_available : true,
+    rustlibs: [
+        "libevdev_sys",
+        "liblibc",
+        "libbitflags",
+        "liblog_rust"
+    ],
+}

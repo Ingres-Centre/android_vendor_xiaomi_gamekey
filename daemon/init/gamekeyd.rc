@@ -1,0 +1,15 @@
+service gamekeyd /vendor/bin/gamekeyd
+	class main
+	user system
+	group system input uhid
+	seclabel u:r:gamekeyd:s0
+	oneshot
+
+on property:sys.boot_completed=1
+	start gamekeyd
+
+on property:vendor.gamekeyd.both_state=1
+	exec -- /system/bin/cmd activity broadcast -a org.ingres.gamekeys.intent.BOTH_OPEN -n org.ingres.gamekeys/.receiver.DaemonIntentReceiver
+
+on property:vendor.gamekeyd.both_state=0
+	exec -- /system/bin/cmd activity broadcast -a org.ingres.gamekeys.intent.BOTH_CLOSE -n org.ingres.gamekeys/.receiver.DaemonIntentReceiver

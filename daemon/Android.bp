@@ -1,0 +1,28 @@
+rust_binary {
+    name: "gamekeyd",
+    crate_name: "gamekeyd",
+    srcs: ["src/main.rs"],
+    edition: "2021",
+    vendor: true,
+    rustlibs: [
+        "libnix",
+        "libtokio",
+        "libevdev_rs",
+        "libchrono",
+        "libbyteorder",
+        "librustutils",
+        "liblogger",
+        "liblog_rust",
+        "libbinder_rs",
+        "libbinder_tokio",
+        "org.ingres.gamekeys-V1-rust"
+    ],
+    proc_macros: ["libasync_trait"],
+    lints: "none",
+    clippy_lints: "none",
+    shared_libs: [
+        "libcutils",
+    ],
+    init_rc: ["init/gamekeyd.rc"],
+    vintf_fragments: ["vintf/org.ingres.gamekeys.xml"],
+}

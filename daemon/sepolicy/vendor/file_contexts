@@ -1,0 +1,2 @@
+/vendor/bin/gamekeyd u:object_r:gamekeyd_exec:s0
+/dev/socket/gamekeyctl u:object_r:gamekeyd_socket:s0
