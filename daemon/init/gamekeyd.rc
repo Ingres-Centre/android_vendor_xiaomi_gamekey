@@ -9,7 +9,11 @@ on property:sys.boot_completed=1
 	start gamekeyd
 
 on property:vendor.gamekeyd.both_state=1
-	exec -- /system/bin/cmd activity broadcast -a org.ingres.gamekeys.intent.BOTH_OPEN -n org.ingres.gamekeys/.receiver.DaemonIntentReceiver
+    exec u:r:shell:s0 shell shell input log adb sdcard_rw sdcard_r net_bt_admin net_bt inet net_bw_stats -- \
+        /system/bin/sh /system/bin/am broadcast -a org.ingres.gamekeys.intent.BOTH_OPEN \
+        -n org.ingres.gamekeys/.receiver.DaemonIntentReceiver
 
 on property:vendor.gamekeyd.both_state=0
-	exec -- /system/bin/cmd activity broadcast -a org.ingres.gamekeys.intent.BOTH_CLOSE -n org.ingres.gamekeys/.receiver.DaemonIntentReceiver
+    exec u:r:shell:s0 shell shell input log adb sdcard_rw sdcard_r net_bt_admin net_bt inet net_bw_stats -- \
+        /system/bin/sh /system/bin/am broadcast -a org.ingres.gamekeys.intent.BOTH_CLOSE \
+        -n org.ingres.gamekeys/.receiver.DaemonIntentReceiver
