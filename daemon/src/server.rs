@@ -23,8 +23,8 @@ impl ISettingsServiceAsyncServer for SettingsService {
         lower: Option<&'l2 Point>,
     ) -> Result<()> {
         let mut compound = self.0.write().await;
-        compound.upper = upper.map(|point| (point.x, point.y));
-        compound.lower = lower.map(|point| (point.x, point.y));
+        compound.upper = upper.map(|point| (point.x * 10, point.y * 10));
+        compound.lower = lower.map(|point| (point.x * 10, point.y * 10));
 
         Ok(())
     }

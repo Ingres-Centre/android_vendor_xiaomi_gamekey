@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<exceptions>
+  <exception package="org.ingres.gamekeys">
+    <permission name="android.permission.POST_NOTIFICATIONS"/>
+    <permission name="android.permission.SYSTEM_ALERT_WINDOW"/>
+  </exception>
+</exceptions>
+

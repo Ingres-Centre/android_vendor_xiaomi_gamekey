@@ -1,0 +1,17 @@
+type gamekeys_app, domain, appdomain;
+
+app_domain(gamekeys_app)
+binder_use(gamekeys_app)
+
+allow gamekeys_app gamekeyd:binder call;
+
+allow gamekeys_app activity_service:service_manager find;
+allow gamekeys_app gamekeys_service:service_manager find;
+allow gamekeys_app legacy_permission_service:service_manager find;
+allow gamekeys_app netstats_service:service_manager find;
+allow gamekeys_app autofill_service:service_manager find;
+allow gamekeys_app clipboard_service:service_manager find;
+allow gamekeys_app content_capture_service:service_manager find;
+allow gamekeys_app sensitive_content_protection_service:service_manager find;
+allow gamekeys_app vendor_hal_qspmhal_default:binder call;
+allow gamekeys_app vibrator_manager_service:service_manager find;

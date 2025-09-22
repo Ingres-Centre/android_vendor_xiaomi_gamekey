@@ -1,0 +1,19 @@
+type gamekeyd, domain;
+type gamekeyd_exec, exec_type, file_type, vendor_file_type;
+type gamekeys_service, app_api_service, service_manager_type;
+
+init_daemon_domain(gamekeyd)
+binder_use(gamekeyd)
+
+#============= gamekeyd ==============
+allow gamekeyd sysfs:dir { open read };
+allow gamekeyd input_device:chr_file { ioctl open read write };
+allow gamekeyd input_device:dir { open read search };
+allow gamekeyd uhid_device:chr_file { ioctl read open write };
+
+allow gamekeyd activity_service:service_manager find;
+allow gamekeyd servicemanager:binder { transfer call };
+allow gamekeyd gamekeys_service:service_manager add;
+
+#============= vendor_gamekeyd_prop ================
+set_prop(gamekeyd, vendor_gamekeyd_prop)
