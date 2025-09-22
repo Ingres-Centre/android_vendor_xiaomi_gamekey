@@ -3,11 +3,14 @@ mod utils;
 use crate::gamekey::utils::enumerate_devices;
 use evdev_rs::enums::{EventCode, EV_KEY};
 use evdev_rs::{Device, InputEvent, ReadFlag};
-use nix::libc::EAGAIN;
+use nix::libc::{EAGAIN, EINTR};
+use nix::poll::{poll, PollFd, PollFlags, PollTimeout};
 use std::error::Error;
+use std::os::fd::{AsFd, AsRawFd};
 use tokio::sync::mpsc;
 use tokio::sync::mpsc::Receiver;
 use tokio::task;
+use nix::errno::Errno;
 
 #[derive(Debug)]
 pub enum EventType {
@@ -81,19 +84,33 @@ pub fn read_gamekey_events() -> Result<Receiver<Event>, Box<dyn Error + Send + S
         ))?;
 
     let device = Device::new_from_path(dev_path)?;
-
     let (tx, rx) = mpsc::channel::<Event>(4);
-    task::spawn_blocking(move || loop {
-        let ev = match device.next_event(ReadFlag::BLOCKING) {
-            Ok((_, ev)) => map_event(ev),
-            Err(e) if e.raw_os_error() == Some(EAGAIN) => continue,
-            Err(e) => panic!("Failed to poll event from gamekey device: {}", e),
-        };
 
-        if let Some(ev) = ev {
-            if let Err(e) = tx.blocking_send(ev) {
-                eprintln!("{}", e);
-                return;
+    task::spawn_blocking(move || {
+        let fd = device.file().as_fd();
+        let mut pfd = [PollFd::new(fd, PollFlags::POLLIN)];
+
+        loop {
+            if let Err(e) = poll(&mut pfd, PollTimeout::NONE) {
+                match e {
+                    Errno::EINTR => continue,
+                    e => panic!("poll: {e}")
+                }
+            }
+
+            loop {
+                let ev = match device.next_event(ReadFlag::BLOCKING) {
+                    Ok((_, ev)) => map_event(ev),
+                    Err(e) if e.raw_os_error() == Some(EAGAIN) => break,
+                    Err(e) => panic!("Failed to poll event from gamekey device: {}", e),
+                };
+
+                if let Some(ev) = ev {
+                    if let Err(e) = tx.blocking_send(ev) {
+                        eprintln!("{}", e);
+                        return;
+                    }
+                }
             }
         }
     });
