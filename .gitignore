@@ -1,6 +1,2 @@
-/target
-
-# cuz these files only needed when developing outside of AOSP
-Cargo.lock
-Cargo.toml
-build.rs
+# im developing ts module, so vendorsetup.sh is terminating
+.lock-setup
