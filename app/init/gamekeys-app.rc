@@ -1,0 +1,7 @@
+# it is bad, but i don't know how to do that in another way :(
+
+on property:service.bootanim.exit=1
+    exec u:r:shell:s0 shell shell log input inet -- /system/bin/sh -c "/system/bin/cmd appops set --user 0 org.ingres.gamekeys android:system_alert_window allow"
+
+on property:service.bootanim.exit=1
+    exec u:r:shell:s0 shell shell log input inet -- /system/bin/sh /product/bin/gamekeys-app-init.sh

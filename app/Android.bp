@@ -25,13 +25,15 @@ prebuilt_etc {
 
 prebuilt_etc {
     name: "gamekeys-app-init-rc",
-    src: "init/gamekeys_app.rc",
+    filename: "gamekeys-app.rc",
+    src: "init/gamekeys-app.rc",
     sub_dir: "init",
     product_specific: true,
 }
 
 sh_binary {
     name: "gamekeys-app-init-sh",
-    src: "init/gamekeys_app_init.sh",
+    filename: "gamekeys-app-init.sh",
+    src: "init/gamekeys-app-init.sh",
     product_specific: true,
 }
