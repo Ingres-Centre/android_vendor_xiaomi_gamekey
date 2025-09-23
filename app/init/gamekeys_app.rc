@@ -1,0 +1,9 @@
+# it is bad, but i don't know how to do that in another way :(
+
+on property:sys.boot_completed=1
+    exec u:r:shell:s0 shell shell input log adb sdcard_rw sdcard_r inet net_bt net_bt_admin net_bw_stats -- \
+        /system/bin/sh -c 'cmd appops set --user 0 org.ingres.gamekeys android:system_alert_window allow'
+
+on property:sys.boot_completed=1
+    exec u:r:shell:s0 shell shell input log adb sdcard_rw sdcard_r inet net_bt net_bt_admin net_bw_stats -- \
+        /system/bin/sh /product/bin/gamekeys_app_init.sh

@@ -15,13 +15,11 @@ pub struct TouchEmulator {
 pub enum Error {
     InvalidSlotCount,
     InvalidSlotId,
-    Io(std::io::Error),
 }
 
 impl fmt::Display for Error {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         match self {
-            Error::Io(err) => write!(f, "{err}"),
             Error::InvalidSlotCount => {
                 write!(f, "Invalid slot count! Min count is 1, max 20.")
             }
@@ -32,16 +30,10 @@ impl fmt::Display for Error {
 
 impl std::error::Error for Error {}
 
-impl From<std::io::Error> for Error {
-    fn from(err: std::io::Error) -> Self {
-        Error::Io(err)
-    }
-}
-
 impl TouchEmulator {
-    pub fn new(slot_count: u8) -> anyhow::Result<Self, Error> {
+    pub fn new(slot_count: u8) -> anyhow::Result<Self> {
         if slot_count == 0 || slot_count > 20 {
-            return Err(Error::InvalidSlotCount);
+            return Err(Error::InvalidSlotCount.into());
         }
 
         let u = UninitDevice::new().unwrap();
@@ -97,9 +89,9 @@ impl TouchEmulator {
         })
     }
 
-    fn tap(&mut self, slot: usize, pos: Option<(i32, i32)>) -> anyhow::Result<(), Error> {
+    fn tap(&mut self, slot: usize, pos: Option<(i32, i32)>) -> anyhow::Result<()> {
         if self.slot_states.len() < slot {
-            return Err(Error::InvalidSlotId);
+            return Err(Error::InvalidSlotId.into());
         }
 
         let now = || std::time::SystemTime::now().try_into().unwrap();
@@ -162,11 +154,11 @@ impl TouchEmulator {
         Ok(())
     }
 
-    pub fn start_tap(&mut self, slot: usize, x: i32, y: i32) -> anyhow::Result<(), Error> {
+    pub fn start_tap(&mut self, slot: usize, x: i32, y: i32) -> anyhow::Result<()> {
         self.tap(slot, Some((x, y)))
     }
 
-    pub fn stop_tap(&mut self, slot: usize) -> anyhow::Result<(), Error> {
+    pub fn stop_tap(&mut self, slot: usize) -> anyhow::Result<()> {
         self.tap(slot, None)
     }
 }

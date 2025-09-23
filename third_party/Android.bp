@@ -1,0 +1,6 @@
+subdirs = [
+    "cpp/evdev",
+    "rust/evdev-sys",
+    "rust/evdev-rs",
+    "rust/binder-tokio",
+]

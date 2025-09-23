@@ -2,11 +2,7 @@ soong_namespace {
 }
 
 subdirs = [
-    "aidl",
     "app",
     "daemon",
-    "third_party/cpp/evdev",
-    "third_party/rust/evdev-sys",
-    "third_party/rust/evdev-rs",
-    "third_party/rust/binder-tokio",
+    "third_party",
 ]

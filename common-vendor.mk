@@ -5,4 +5,6 @@ PRODUCT_PACKAGES += \
     gamekeyd \
     GameKeysApp \
     gamekeys-priv-perms \
-    gamekeys-default-perms
+    gamekeys-default-perms \
+    gamekeys-app-init-rc \
+    gamekeys-app-init-sh

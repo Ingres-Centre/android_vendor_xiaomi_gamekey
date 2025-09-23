@@ -1,5 +1,5 @@
 aidl_interface {
-    name: "org.ingres.gamekeys",
+    name: "gamekeyd-aidl",
     srcs: ["org/ingres/gamekeys/*.aidl"],
     owner: "xiaomi",
     stability: "vintf",
@@ -12,5 +12,13 @@ aidl_interface {
         },
     },
     vendor_available: true,
-    frozen: false,
+
+    frozen: true,
+    versions_with_info: [
+        {
+            version: "1",
+            imports: [],
+        },
+    ],
+
 }

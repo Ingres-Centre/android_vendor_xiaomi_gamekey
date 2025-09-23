@@ -1,3 +1,7 @@
+subdirs = [
+    "aidl",
+]
+
 rust_binary {
     name: "gamekeyd",
     crate_name: "gamekeyd",
@@ -16,7 +20,7 @@ rust_binary {
         "liblog_rust",
         "libbinder_rs",
         "libbinder_tokio",
-        "org.ingres.gamekeys-V1-rust"
+        "gamekeyd-aidl-V1-rust"
     ],
     proc_macros: ["libasync_trait"],
     lints: "none",

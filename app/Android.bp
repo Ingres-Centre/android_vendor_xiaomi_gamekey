@@ -22,3 +22,16 @@ prebuilt_etc {
     sub_dir: "default-permissions",
     product_specific: true,
 }
+
+prebuilt_etc {
+    name: "gamekeys-app-init-rc",
+    src: "init/gamekeys_app.rc",
+    sub_dir: "init",
+    product_specific: true,
+}
+
+sh_binary {
+    name: "gamekeys-app-init-sh",
+    src: "init/gamekeys_app_init.sh",
+    product_specific: true,
+}

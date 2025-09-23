@@ -1,5 +1,6 @@
 use crate::GameKeyCompound;
-use org_ingres_gamekeys::{
+use async_trait::async_trait;
+use gamekeyd_aidl::{
     aidl::org::ingres::gamekeys::{
         ISettingsService::{self, ISettingsServiceAsyncServer, ISettingsServiceDefaultRef},
         Point::Point,
@@ -8,7 +9,6 @@ use org_ingres_gamekeys::{
 };
 use std::sync::Arc;
 use tokio::sync::RwLock;
-use async_trait::async_trait;
 
 pub struct SettingsService(Arc<RwLock<GameKeyCompound>>);
 
