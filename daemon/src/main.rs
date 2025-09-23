@@ -1,5 +1,6 @@
 use crate::gamekey::read_gamekey_events;
 use crate::server::SettingsService;
+use anyhow::Context;
 use binder_tokio::TokioRuntime;
 use gamekey::EventType;
 use log::LevelFilter;
@@ -36,14 +37,17 @@ fn main() {
     log::info!("Startup...");
 
     let rt = Runtime::new().unwrap();
-    rt.block_on(async_main()).unwrap();
+
+    rt.block_on(async {
+        if let Err(e) = async_main().await {
+            log::error!("{:?}", e);
+        }
+    })
 }
 
-async fn gk_event_loop(
-    compound: Arc<RwLock<GameKeyCompound>>,
-) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
-    let mut touch_emulator = TouchEmulator::new(2)?;
-    let mut event_stream = read_gamekey_events()?;
+async fn gk_event_loop(compound: Arc<RwLock<GameKeyCompound>>) -> anyhow::Result<()> {
+    let mut touch_emulator = TouchEmulator::new(2).context("Failed to create touch emulator")?;
+    let mut event_stream = read_gamekey_events().context("Get gk event stream failed")?;
 
     let mut last_open_time: [std::time::SystemTime; 2] =
         [std::time::SystemTime::UNIX_EPOCH, std::time::SystemTime::UNIX_EPOCH];
@@ -56,24 +60,32 @@ async fn gk_event_loop(
         if let Some(ev) = ev {
             match &ev.r#type {
                 EventType::Close => {
-                    let opposite_close_at = last_close_time.get((ev.slot ^ 1) as usize).unwrap().clone();
+                    let opposite_close_at =
+                        last_close_time.get((ev.slot ^ 1) as usize).unwrap().clone();
                     let current_close_at = last_close_time.get_mut(ev.slot as usize).unwrap();
 
                     *current_close_at = SystemTime::now();
 
-                    if (current_close_at.duration_since(opposite_close_at).unwrap() < Duration::from_secs(1)) {
-                        rustutils::system_properties::write("vendor.gamekeyd.both_state", "0").unwrap();
+                    if (current_close_at.duration_since(opposite_close_at).unwrap()
+                        < Duration::from_secs(1))
+                    {
+                        rustutils::system_properties::write("vendor.gamekeyd.both_state", "0")
+                            .unwrap();
                         log::debug!("Both triggers are closed!");
                     }
                 }
                 EventType::Open => {
-                    let opposite_open_at = last_open_time.get((ev.slot ^ 1) as usize).unwrap().clone();
+                    let opposite_open_at =
+                        last_open_time.get((ev.slot ^ 1) as usize).unwrap().clone();
                     let current_open_at = last_open_time.get_mut(ev.slot as usize).unwrap();
 
                     *current_open_at = SystemTime::now();
 
-                    if (current_open_at.duration_since(opposite_open_at).unwrap() < Duration::from_secs(1)) {
-                        rustutils::system_properties::write("vendor.gamekeyd.both_state", "1").unwrap();
+                    if (current_open_at.duration_since(opposite_open_at).unwrap()
+                        < Duration::from_secs(1))
+                    {
+                        rustutils::system_properties::write("vendor.gamekeyd.both_state", "1")
+                            .unwrap();
                         log::debug!("Both triggers are opened!");
                     }
                 }
@@ -83,7 +95,7 @@ async fn gk_event_loop(
                     let data = match ev.slot {
                         0 => compound_lock.upper,
                         1 => compound_lock.lower,
-                        _ => unreachable!()
+                        _ => unreachable!(),
                     };
 
                     if let Some((x, y)) = data {
@@ -92,14 +104,14 @@ async fn gk_event_loop(
                             log::warn!("{}", e);
                         }
                     }
-                },
+                }
                 EventType::Release => {
                     let compound_lock = compound.read().await;
 
                     let data = match ev.slot {
                         0 => compound_lock.upper,
                         1 => compound_lock.lower,
-                        _ => unreachable!()
+                        _ => unreachable!(),
                     };
 
                     if let Some((x, y)) = data {
@@ -108,7 +120,7 @@ async fn gk_event_loop(
                             log::warn!("{}", e);
                         }
                     }
-                },
+                }
             }
 
             log::debug!("Event: {:#?}", ev);
@@ -122,7 +134,7 @@ async fn gk_event_loop(
     Ok(())
 }
 
-async fn async_main() -> Result<(), Box<dyn Error + Send + Sync>> {
+async fn async_main() -> anyhow::Result<()> {
     let compound = Arc::new(RwLock::new(GameKeyCompound { lower: None, upper: None }));
 
     log::info!("hi probably?");
@@ -136,7 +148,7 @@ async fn async_main() -> Result<(), Box<dyn Error + Send + Sync>> {
         binder_tokio::TokioRuntime(tokio::runtime::Handle::current()),
         BinderFeatures::default(),
     );
-    binder::add_service(name, svc.as_binder())?;
+    binder::add_service(name, svc.as_binder()).context("Failed to register ISettingsService")?;
     log::info!("Binder service '{}' registered successfully!", name);
 
     log::info!("Pooling gamekey events...");

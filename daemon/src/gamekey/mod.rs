@@ -1,8 +1,10 @@
 mod utils;
 
 use crate::gamekey::utils::enumerate_devices;
+use anyhow::Context;
 use evdev_rs::enums::{EventCode, EV_KEY};
 use evdev_rs::{Device, InputEvent, ReadFlag};
+use nix::errno::Errno;
 use nix::libc::{EAGAIN, EINTR};
 use nix::poll::{poll, PollFd, PollFlags, PollTimeout};
 use std::error::Error;
@@ -10,7 +12,6 @@ use std::os::fd::{AsFd, AsRawFd};
 use tokio::sync::mpsc;
 use tokio::sync::mpsc::Receiver;
 use tokio::task;
-use nix::errno::Errno;
 
 #[derive(Debug)]
 pub enum EventType {
@@ -74,8 +75,9 @@ fn map_event(ev: InputEvent) -> Option<Event> {
     }
 }
 
-pub fn read_gamekey_events() -> Result<Receiver<Event>, Box<dyn Error + Send + Sync>> {
-    let (dev_path, _) = enumerate_devices()?
+pub fn read_gamekey_events() -> anyhow::Result<Receiver<Event>> {
+    let (dev_path, _) = enumerate_devices()
+        .context("Failed to enumerate enumerate devices")?
         .into_iter()
         .find(|(_, name)| name == "xm_gamekey")
         .ok_or(std::io::Error::new(
@@ -83,7 +85,7 @@ pub fn read_gamekey_events() -> Result<Receiver<Event>, Box<dyn Error + Send + S
             "Input device with name `xm_gamekey` not found",
         ))?;
 
-    let device = Device::new_from_path(dev_path)?;
+    let device = Device::new_from_path(dev_path).context("Failed to create Device from raw fd")?;
     let (tx, rx) = mpsc::channel::<Event>(4);
 
     task::spawn_blocking(move || {
@@ -94,7 +96,7 @@ pub fn read_gamekey_events() -> Result<Receiver<Event>, Box<dyn Error + Send + S
             if let Err(e) = poll(&mut pfd, PollTimeout::NONE) {
                 match e {
                     Errno::EINTR => continue,
-                    e => panic!("poll: {e}")
+                    e => panic!("poll: {e}"),
                 }
             }
 

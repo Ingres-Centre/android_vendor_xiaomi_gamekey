@@ -5,6 +5,7 @@ rust_binary {
     edition: "2021",
     vendor: true,
     rustlibs: [
+        "libanyhow",
         "libnix",
         "libtokio",
         "libevdev_rs",

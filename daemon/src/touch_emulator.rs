@@ -1,4 +1,5 @@
 use crate::counter::IncrementalCounter;
+use anyhow::Context;
 use evdev_rs::enums::{BusType, EventCode, EventType, InputProp, EV_ABS, EV_KEY, EV_SYN};
 use evdev_rs::{AbsInfo, DeviceWrapper, EnableCodeData, InputEvent, UInputDevice, UninitDevice};
 use std::fmt;
@@ -38,7 +39,7 @@ impl From<std::io::Error> for Error {
 }
 
 impl TouchEmulator {
-    pub fn new(slot_count: u8) -> Result<Self, Error> {
+    pub fn new(slot_count: u8) -> anyhow::Result<Self, Error> {
         if slot_count == 0 || slot_count > 20 {
             return Err(Error::InvalidSlotCount);
         }
@@ -75,54 +76,28 @@ impl TouchEmulator {
             &EventCode::EV_ABS(EV_ABS::ABS_MT_SLOT),
             Some(abs(0, (slot_count - 1) as i32)),
         )?;
-        u.enable_event_code(
-            &EventCode::EV_ABS(EV_ABS::ABS_MT_TOUCH_MAJOR),
-            Some(abs(0, 10800)),
-        )?;
-        u.enable_event_code(
-            &EventCode::EV_ABS(EV_ABS::ABS_MT_TOUCH_MINOR),
-            Some(abs(0, 24000)),
-        )?;
-        u.enable_event_code(
-            &EventCode::EV_ABS(EV_ABS::ABS_MT_WIDTH_MAJOR),
-            Some(abs(0, 127)),
-        )?;
-        u.enable_event_code(
-            &EventCode::EV_ABS(EV_ABS::ABS_MT_WIDTH_MINOR),
-            Some(abs(0, 127)),
-        )?;
-        u.enable_event_code(
-            &EventCode::EV_ABS(EV_ABS::ABS_MT_ORIENTATION),
-            Some(abs(-90, 90)),
-        )?;
-        u.enable_event_code(
-            &EventCode::EV_ABS(EV_ABS::ABS_MT_POSITION_X),
-            Some(abs(0, 10799)),
-        )?;
-        u.enable_event_code(
-            &EventCode::EV_ABS(EV_ABS::ABS_MT_POSITION_Y),
-            Some(abs(0, 23999)),
-        )?;
-        u.enable_event_code(
-            &EventCode::EV_ABS(EV_ABS::ABS_MT_TRACKING_ID),
-            Some(abs(0, 65535)),
-        )?;
-        u.enable_event_code(
-            &EventCode::EV_ABS(EV_ABS::ABS_MT_DISTANCE),
-            Some(abs(0, 127)),
-        )?;
+        u.enable_event_code(&EventCode::EV_ABS(EV_ABS::ABS_MT_TOUCH_MAJOR), Some(abs(0, 10800)))?;
+        u.enable_event_code(&EventCode::EV_ABS(EV_ABS::ABS_MT_TOUCH_MINOR), Some(abs(0, 24000)))?;
+        u.enable_event_code(&EventCode::EV_ABS(EV_ABS::ABS_MT_WIDTH_MAJOR), Some(abs(0, 127)))?;
+        u.enable_event_code(&EventCode::EV_ABS(EV_ABS::ABS_MT_WIDTH_MINOR), Some(abs(0, 127)))?;
+        u.enable_event_code(&EventCode::EV_ABS(EV_ABS::ABS_MT_ORIENTATION), Some(abs(-90, 90)))?;
+        u.enable_event_code(&EventCode::EV_ABS(EV_ABS::ABS_MT_POSITION_X), Some(abs(0, 10799)))?;
+        u.enable_event_code(&EventCode::EV_ABS(EV_ABS::ABS_MT_POSITION_Y), Some(abs(0, 23999)))?;
+        u.enable_event_code(&EventCode::EV_ABS(EV_ABS::ABS_MT_TRACKING_ID), Some(abs(0, 65535)))?;
+        u.enable_event_code(&EventCode::EV_ABS(EV_ABS::ABS_MT_DISTANCE), Some(abs(0, 127)))?;
 
         let mut slot_states = Vec::new();
         slot_states.resize(slot_count as usize, false);
 
         Ok(Self {
-            udevice: UInputDevice::create_from_device(&u)?,
+            udevice: UInputDevice::create_from_device(&u)
+                .context("Failed to create UInputDevice from Device")?,
             slot_states,
             touch_counter: IncrementalCounter::new(0),
         })
     }
 
-    fn tap(&mut self, slot: usize, pos: Option<(i32, i32)>) -> Result<(), Error> {
+    fn tap(&mut self, slot: usize, pos: Option<(i32, i32)>) -> anyhow::Result<(), Error> {
         if self.slot_states.len() < slot {
             return Err(Error::InvalidSlotId);
         }
@@ -147,11 +122,7 @@ impl TouchEmulator {
         self.udevice.write_event(&InputEvent {
             time: now(),
             event_code: EventCode::EV_ABS(EV_ABS::ABS_MT_TRACKING_ID),
-            value: if is_press {
-                self.touch_counter.next()
-            } else {
-                -1
-            },
+            value: if is_press { self.touch_counter.next() } else { -1 },
         })?;
 
         if (is_press && !touched_before) || (!is_press && !touched_after) {
@@ -191,11 +162,11 @@ impl TouchEmulator {
         Ok(())
     }
 
-    pub fn start_tap(&mut self, slot: usize, x: i32, y: i32) -> Result<(), Error> {
+    pub fn start_tap(&mut self, slot: usize, x: i32, y: i32) -> anyhow::Result<(), Error> {
         self.tap(slot, Some((x, y)))
     }
 
-    pub fn stop_tap(&mut self, slot: usize) -> Result<(), Error> {
+    pub fn stop_tap(&mut self, slot: usize) -> anyhow::Result<(), Error> {
         self.tap(slot, None)
     }
 }
