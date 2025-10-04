@@ -20,6 +20,8 @@ rust_binary {
         "liblog_rust",
         "libbinder_rs",
         "libbinder_tokio",
+	"libfutures",
+	"libtokio_stream",
         "gamekeyd-aidl-V1-rust"
     ],
     proc_macros: ["libasync_trait"],

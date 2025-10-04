@@ -1,12 +1,12 @@
-use crate::counter::IncrementalCounter;
-use anyhow::Context;
-use evdev_rs::enums::{BusType, EventCode, EventType, InputProp, EV_ABS, EV_KEY, EV_SYN};
-use evdev_rs::{AbsInfo, DeviceWrapper, EnableCodeData, InputEvent, UInputDevice, UninitDevice};
+use crate::utils::counter::IncrementalCounter;
+use evdev_rs::enums::{EventCode, EV_ABS, EV_KEY, EV_SYN};
+use evdev_rs::InputEvent;
 use std::fmt;
 use std::fmt::Formatter;
+use tokio::sync::mpsc::{Receiver, Sender};
 
 pub struct TouchEmulator {
-    udevice: UInputDevice,
+    output: Sender<InputEvent>,
     slot_states: Vec<bool>,
     touch_counter: IncrementalCounter<i32>,
 }
@@ -31,65 +31,27 @@ impl fmt::Display for Error {
 impl std::error::Error for Error {}
 
 impl TouchEmulator {
-    pub fn new(slot_count: u8) -> anyhow::Result<Self> {
+    pub fn new(slot_count: u8) -> anyhow::Result<(Self, Receiver<InputEvent>)> {
         if slot_count == 0 || slot_count > 20 {
             return Err(Error::InvalidSlotCount.into());
         }
 
-        let u = UninitDevice::new().unwrap();
-
-        u.set_name("gamekey-touch");
-        u.set_bustype(BusType::BUS_VIRTUAL as u16);
-        u.set_vendor_id(0x6761); // ga
-        u.set_product_id(0x6d65); // me
-
-        u.enable(EventType::EV_KEY)?;
-        u.enable(EventType::EV_ABS)?;
-        u.enable_property(&InputProp::INPUT_PROP_DIRECT)?;
-
-        u.enable(EventCode::EV_SYN(EV_SYN::SYN_REPORT))?;
-        u.enable(EventCode::EV_SYN(EV_SYN::SYN_MT_REPORT))?;
-
-        u.enable(EventCode::EV_KEY(EV_KEY::BTN_TOUCH))?;
-        u.enable(EventCode::EV_KEY(EV_KEY::BTN_TOOL_FINGER))?;
-
-        let abs = |min: i32, max: i32| {
-            EnableCodeData::AbsInfo(AbsInfo {
-                value: 0,
-                minimum: min,
-                maximum: max,
-                flat: 0,
-                fuzz: 0,
-                resolution: 0,
-            })
-        };
-
-        u.enable_event_code(
-            &EventCode::EV_ABS(EV_ABS::ABS_MT_SLOT),
-            Some(abs(0, (slot_count - 1) as i32)),
-        )?;
-        u.enable_event_code(&EventCode::EV_ABS(EV_ABS::ABS_MT_TOUCH_MAJOR), Some(abs(0, 10800)))?;
-        u.enable_event_code(&EventCode::EV_ABS(EV_ABS::ABS_MT_TOUCH_MINOR), Some(abs(0, 24000)))?;
-        u.enable_event_code(&EventCode::EV_ABS(EV_ABS::ABS_MT_WIDTH_MAJOR), Some(abs(0, 127)))?;
-        u.enable_event_code(&EventCode::EV_ABS(EV_ABS::ABS_MT_WIDTH_MINOR), Some(abs(0, 127)))?;
-        u.enable_event_code(&EventCode::EV_ABS(EV_ABS::ABS_MT_ORIENTATION), Some(abs(-90, 90)))?;
-        u.enable_event_code(&EventCode::EV_ABS(EV_ABS::ABS_MT_POSITION_X), Some(abs(0, 10799)))?;
-        u.enable_event_code(&EventCode::EV_ABS(EV_ABS::ABS_MT_POSITION_Y), Some(abs(0, 23999)))?;
-        u.enable_event_code(&EventCode::EV_ABS(EV_ABS::ABS_MT_TRACKING_ID), Some(abs(0, 65535)))?;
-        u.enable_event_code(&EventCode::EV_ABS(EV_ABS::ABS_MT_DISTANCE), Some(abs(0, 127)))?;
-
         let mut slot_states = Vec::new();
         slot_states.resize(slot_count as usize, false);
 
-        Ok(Self {
-            udevice: UInputDevice::create_from_device(&u)
-                .context("Failed to create UInputDevice from Device")?,
-            slot_states,
-            touch_counter: IncrementalCounter::new(0),
-        })
+        let (tx, rx) = tokio::sync::mpsc::channel::<InputEvent>(4);
+
+        Ok((
+            Self {
+                output: tx,
+                slot_states,
+                touch_counter: IncrementalCounter::new(0),
+            },
+            rx,
+        ))
     }
 
-    fn tap(&mut self, slot: usize, pos: Option<(i32, i32)>) -> anyhow::Result<()> {
+    async fn tap(&mut self, slot: usize, pos: Option<(i32, i32)>) -> anyhow::Result<()> {
         if self.slot_states.len() < slot {
             return Err(Error::InvalidSlotId.into());
         }
@@ -105,60 +67,78 @@ impl TouchEmulator {
         self.slot_states[slot] = is_press;
         let touched_after = self.slot_states.iter().any(|s| *s);
 
-        self.udevice.write_event(&InputEvent {
-            time: now(),
-            event_code: EventCode::EV_ABS(EV_ABS::ABS_MT_SLOT),
-            value: slot as i32,
-        })?;
+        self.output
+            .send(InputEvent {
+                time: now(),
+                event_code: EventCode::EV_ABS(EV_ABS::ABS_MT_SLOT),
+                value: slot as i32,
+            })
+            .await?;
 
-        self.udevice.write_event(&InputEvent {
-            time: now(),
-            event_code: EventCode::EV_ABS(EV_ABS::ABS_MT_TRACKING_ID),
-            value: if is_press { self.touch_counter.next() } else { -1 },
-        })?;
+        self.output
+            .send(InputEvent {
+                time: now(),
+                event_code: EventCode::EV_ABS(EV_ABS::ABS_MT_TRACKING_ID),
+                value: if is_press {
+                    self.touch_counter.next()
+                } else {
+                    -1
+                },
+            })
+            .await?;
 
         if (is_press && !touched_before) || (!is_press && !touched_after) {
-            self.udevice.write_event(&InputEvent {
-                time: now(),
-                event_code: EventCode::EV_KEY(EV_KEY::BTN_TOUCH),
-                value: is_press as i32,
-            })?;
+            self.output
+                .send(InputEvent {
+                    time: now(),
+                    event_code: EventCode::EV_KEY(EV_KEY::BTN_TOUCH),
+                    value: is_press as i32,
+                })
+                .await?;
 
-            self.udevice.write_event(&InputEvent {
-                time: now(),
-                event_code: EventCode::EV_KEY(EV_KEY::BTN_TOOL_FINGER),
-                value: is_press as i32,
-            })?;
+            self.output
+                .send(InputEvent {
+                    time: now(),
+                    event_code: EventCode::EV_KEY(EV_KEY::BTN_TOOL_FINGER),
+                    value: is_press as i32,
+                })
+                .await?;
         }
 
         if let Some((x, y)) = pos {
-            self.udevice.write_event(&InputEvent {
-                time: now(),
-                event_code: EventCode::EV_ABS(EV_ABS::ABS_MT_POSITION_X),
-                value: x,
-            })?;
+            self.output
+                .send(InputEvent {
+                    time: now(),
+                    event_code: EventCode::EV_ABS(EV_ABS::ABS_MT_POSITION_X),
+                    value: x,
+                })
+                .await?;
 
-            self.udevice.write_event(&InputEvent {
-                time: now(),
-                event_code: EventCode::EV_ABS(EV_ABS::ABS_MT_POSITION_Y),
-                value: y,
-            })?;
+            self.output
+                .send(InputEvent {
+                    time: now(),
+                    event_code: EventCode::EV_ABS(EV_ABS::ABS_MT_POSITION_Y),
+                    value: y,
+                })
+                .await?;
         }
 
-        self.udevice.write_event(&InputEvent {
-            time: now(),
-            event_code: EventCode::EV_SYN(EV_SYN::SYN_REPORT),
-            value: 0,
-        })?;
+        self.output
+            .send(InputEvent {
+                time: now(),
+                event_code: EventCode::EV_SYN(EV_SYN::SYN_REPORT),
+                value: 0,
+            })
+            .await?;
 
         Ok(())
     }
 
-    pub fn start_tap(&mut self, slot: usize, x: i32, y: i32) -> anyhow::Result<()> {
-        self.tap(slot, Some((x, y)))
+    pub async fn start_tap(&mut self, slot: usize, x: i32, y: i32) -> anyhow::Result<()> {
+        self.tap(slot, Some((x, y))).await
     }
 
-    pub fn stop_tap(&mut self, slot: usize) -> anyhow::Result<()> {
-        self.tap(slot, None)
+    pub async fn stop_tap(&mut self, slot: usize) -> anyhow::Result<()> {
+        self.tap(slot, None).await
     }
 }
